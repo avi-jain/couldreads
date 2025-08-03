@@ -195,7 +195,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans antialiased">
       <div className="bg-white shadow-xl rounded-2xl p-8 max-w-2xl w-full">
-        <h1 className="text-4xl font-serif font-bold text-center text-gray-800 mb-2">ShouldReads</h1>
+        <h1 className="text-4xl font-serif font-bold text-center text-gray-800 mb-2">couldreads</h1>
         <p className="text-center text-gray-500 mb-8">
           Find your next favorite book from a bookshelf photo.
         </p>
