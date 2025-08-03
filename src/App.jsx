@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 // Main App component
 export default function App() {
@@ -124,7 +124,7 @@ export default function App() {
         }
       };
 
-      const apiKey = "";
+      const apiKey = import.meta.env.GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
       // 5. Make the API call with exponential backoff for retries.
