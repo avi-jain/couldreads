@@ -1,0 +1,20 @@
+# This file contains sensitive information such as API keys and should not be committed to version control.
+.env
+# Ignore node_modules directory
+node_modules/
+# Ignore build output directory
+dist/
+# Ignore log files
+*.log
+# Ignore temporary files
+*.tmp
+# Ignore IDE specific files
+.vscode/
+.idea/
+# Ignore coverage reports
+coverage/
+# Ignore cache directories
+.cache/
+# Ignore build artifacts
+build/
+.vercel

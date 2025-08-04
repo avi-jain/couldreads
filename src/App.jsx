@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getReadBooks, fetchBookDetailsFromGoogleBooks } from   './helpers';
 
 // Main App component
 export default function App() {
@@ -7,52 +8,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState(null);
-
-  /**
-   * Mocks a call to a Goodreads scraping service to get a user's read books.
-   * In a real application, this would be a backend call to a web scraper.
-   * @param {string} userId The Goodreads user ID.
-   * @returns {string[]} An array of hardcoded book titles.
-   */
-  const getReadBooks = (userId) => {
-    // This is a hardcoded list of books for demonstration.
-    // In a real-world app, a backend service would scrape Goodreads.
-    if (userId === '12345') {
-      return [
-        "Project Hail Mary",
-        "Dune",
-        "The Lord of the Rings",
-        "The Name of the Wind",
-        "The Martian",
-        "Harry Potter and the Sorcerer's Stone",
-        "The Hitchhiker's Guide to the Galaxy",
-        "1984"
-      ];
-    }
-    return [];
-  };
-
-  /**
-   * Fetches book details (image, URL) from the Google Books API.
-   * @param {string} title The title of the book.
-   * @returns {object} An object containing the book details, or null if not found.
-   */
-  const fetchBookDetailsFromGoogleBooks = async (title) => {
-    try {
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=1`);
-      const data = await response.json();
-      if (data.items && data.items.length > 0) {
-        const item = data.items[0];
-        return {
-          imageUrl: item.volumeInfo.imageLinks?.thumbnail,
-          url: item.volumeInfo.infoLink,
-        };
-      }
-    } catch (err) {
-      console.error('Error fetching from Google Books API:', err);
-    }
-    return null;
-  };
 
   /**
    * Handles the form submission, processes the image, and gets recommendations from the LLM.
@@ -72,7 +27,7 @@ export default function App() {
 
     try {
       // 1. Get the mocked list of books the user has read.
-      const readBooks = getReadBooks(goodreadsId);
+      const readBooks = await getReadBooks(goodreadsId);
 
       // 2. Convert the uploaded image to a base64 string.
       const base64Image = await new Promise((resolve, reject) => {
@@ -92,6 +47,7 @@ export default function App() {
         Example response: [{ "bookTitle": "The Name of the Wind", "summary": "If you enjoy epic fantasy with a lyrical writing style, this is a must-read." }]
         If you cannot find any new books to recommend, return an empty array.
       `;
+      console.log('Prompt for LLM:', prompt);
 
       // 4. Set up the LLM API call payload with image and text.
       const payload = {
@@ -129,7 +85,7 @@ export default function App() {
         ]
       };
 
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
       // 5. Make the API call with exponential backoff for retries.
@@ -171,8 +127,24 @@ export default function App() {
       if (result.candidates && result.candidates.length > 0 &&
         result.candidates[0].content && result.candidates[0].content.parts &&
         result.candidates[0].content.parts.length > 0) {
-        const jsonString = result.candidates[0].content.parts[0].text;
-        const parsedJson = JSON.parse(jsonString);
+        // The LLM response is prefixed with "json```" and then the JSON content.
+        let rawText = result.candidates[0].content.parts[0].text.trim();
+        console.log(rawText);
+        // Remove "json```" prefix and any trailing backticks
+        if (rawText.startsWith('json')) {
+          rawText = rawText.replace(/^json\s*```/i, '').replace(/```$/, '').trim();
+        } else if (rawText.startsWith('```json')) {
+          rawText = rawText.replace(/^```json/i, '').replace(/```$/, '').trim();
+        } else if (rawText.startsWith('```')) {
+          rawText = rawText.replace(/^```/, '').replace(/```$/, '').trim();
+        }
+
+        let parsedJson;
+        try {
+          parsedJson = JSON.parse(rawText);
+        } catch (err) {
+          throw new Error('Failed to parse LLM response as JSON.');
+        }
 
         // 6. Fetch additional details for each book from Google Books API
         const recommendationsWithDetails = await Promise.all(
