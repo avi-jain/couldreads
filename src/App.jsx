@@ -110,7 +110,7 @@ export default function App() {
           }
         ],
         generationConfig: {
-          responseMimeType: "application/json",
+          // responseMimeType: "application/json",
           responseSchema: {
             type: "ARRAY",
             items: {
