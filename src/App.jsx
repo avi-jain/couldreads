@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { getReadBooks, fetchBookDetailsFromGoogleBooks } from   './helpers';
+import React, { useState, useEffect } from 'react';
+import { getReadBooks, fetchBookDetailsFromGoogleBooks, getGoodreadsData } from   './helpers';
 
 // Main App component
 export default function App() {
@@ -9,6 +9,21 @@ export default function App() {
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState(null);
 
+  const [currentQuote, setCurrentQuote] = useState('');
+  const loadingQuotes = [
+        "Today we’re all alike, all of us bound together by our shared apathy toward our work. That very apathy has become a passion. The one great collective passion of our time.\n~ Milan Kundera, Identity",
+        "This idea that beauty is the horizon toward which all great art must march. I’ve never been interested in that.\n~ Kaveh Akbar, Martyr!",
+        "The more you read, the more things you will know. The more that you learn, the more places you'll go.\n~ Dr. Seuss, I Can Read With My Eyes Shut!",
+        "A reader lives a thousand lives before he dies... The man who never reads lives only one.\n~ George R.R. Martin, A Dance with Dragons",
+        "Books are a uniquely portable magic.\n~ Stephen King, On Writing: A Memoir of the Craft"
+      ];
+
+  useEffect(() => {
+      if (loading) {
+        const randomIndex = Math.floor(Math.random() * loadingQuotes.length);
+        setCurrentQuote(loadingQuotes[randomIndex]);
+      }
+    }, [loading]);
   /**
    * Handles the form submission, processes the image, and gets recommendations from the LLM.
    * @param {Event} e The form submission event.
@@ -38,13 +53,24 @@ export default function App() {
       });
 
       // 3. Craft the prompt for the LLM.
+      // const prompt = `
+      //   You are an expert literary assistant. Your task is to analyze an image of a bookshelf, identify the books on it, and then recommend three books from that shelf that are NOT in the user's list of previously read books.
+
+      //   The user's list of read books is: ${readBooks.join(', ')}.
+
+      //   Please provide your response as a JSON array of objects. Each object should have a 'bookTitle' property (a string) and a 'summary' property (a one-line summary string explaining why the user might like this book). Do not include any other text or formatting outside the JSON array.
+      //   Example response: [{ "bookTitle": "The Name of the Wind", "summary": "If you enjoy epic fantasy with a lyrical writing style, this is a must-read." }]
+      //   If you cannot find any new books to recommend, return an empty array.
+      // `;
+
+      // 3. Craft the prompt for the LLM.
       const prompt = `
         You are an expert literary assistant. Your task is to analyze an image of a bookshelf, identify the books on it, and then recommend three books from that shelf that are NOT in the user's list of previously read books.
 
         The user's list of read books is: ${readBooks.join(', ')}.
 
-        Please provide your response as a JSON array of objects. Each object should have a 'bookTitle' property (a string) and a 'summary' property (a one-line summary string explaining why the user might like this book). Do not include any other text or formatting outside the JSON array.
-        Example response: [{ "bookTitle": "The Name of the Wind", "summary": "If you enjoy epic fantasy with a lyrical writing style, this is a must-read." }]
+        Please provide your response as a JSON array of objects. Each object should have a 'bookTitle' property (a string) and a 'goodreadsUrl' property (the URL to the book on Goodreads). Do not include any other text or formatting outside the JSON array.
+        Example response: [{ "bookTitle": "The Name of the Wind", "goodreadsUrl": "https://www.goodreads.com/book/show/186074.The_Name_of_the_Wind" }]
         If you cannot find any new books to recommend, return an empty array.
       `;
       console.log('Prompt for LLM:', prompt);
@@ -86,7 +112,9 @@ export default function App() {
       };
 
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const searchApiKey = import.meta.env.VITE_GOOGLE_SEARCH_API_KEY || process.env.VITE_GOOGLE_SEARCH_API_KEY;
+      const searchCx = import.meta.env.VITE_GOOGLE_SEARCH_CX || process.env.VITE_GOOGLE_SEARCH_CX;
 
       // 5. Make the API call with exponential backoff for retries.
       let response;
@@ -149,10 +177,13 @@ export default function App() {
         // 6. Fetch additional details for each book from Google Books API
         const recommendationsWithDetails = await Promise.all(
           parsedJson.map(async (book) => {
-            const details = await fetchBookDetailsFromGoogleBooks(book.bookTitle);
+            // const details = await fetchBookDetailsFromGoogleBooks(book.bookTitle);
+            // Fetch Goodreads data (optional: pass author if available)
+            const goodreads = await getGoodreadsData(book.bookTitle, book.author, searchApiKey, searchCx);
             return {
               ...book,
-              ...details
+              // ...details,
+              ...goodreads
             };
           })
         );
@@ -212,22 +243,23 @@ export default function App() {
           </div>
 
           <button
-            type="submit"
-            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            disabled={loading || !imageFile}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Getting Recommendations...
-              </span>
-            ) : (
-              'Get Recommendations'
-            )}
-          </button>
+                type="submit"
+                className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={loading || !imageFile}
+              >
+                {loading ? (
+                  <span className="flex flex-col items-center justify-center">
+                    <svg className="animate-spin h-8 w-8 text-white mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-white text-sm font-semibold">Getting Recommendations...</span>
+                    <p className="text-white text-xs text-center mt-2 px-4 italic max-w-xs">{currentQuote}</p>
+                  </span>
+                ) : (
+                  'Get Recommendations'
+                )}
+              </button>
         </form>
 
         {/* Results and Error Display */}
@@ -239,43 +271,55 @@ export default function App() {
         )}
 
         {recommendations.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Your Recommendations</h2>
-            <ul className="space-y-6">
-              {recommendations.map((book, index) => (
-                <li key={index} className="bg-gray-50 p-4 rounded-xl shadow-sm hover:shadow-md transition duration-200 flex items-center space-x-4">
-                  {book.imageUrl && (
-                    <img
-                      src={book.imageUrl}
-                      alt={`Cover of ${book.bookTitle}`}
-                      className="w-20 h-auto rounded-lg shadow-md flex-shrink-0"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = "https://placehold.co/80x120/E2E8F0/A0AEC0?text=No+Cover";
-                      }}
-                    />
-                  )}
-                  <div className="flex-grow">
-                    <h3 className="text-xl font-bold text-gray-800">{book.bookTitle}</h3>
-                    <p className="text-sm text-gray-600 italic mt-1">{book.summary}</p>
-                    {book.url && (
-                      <a
-                        href={book.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block mt-3 bg-blue-500 text-white text-sm font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-600 transition duration-200"
-                      >
-                        View on Google Books
-                      </a>
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Your Recommendations</h2>
+              <ul className="space-y-6">
+                {recommendations.map((book, index) => (
+                  <li key={index} className="bg-gray-50 p-4 rounded-xl shadow-sm hover:shadow-md transition duration-200 flex items-center space-x-4">
+                    {book.imgUrl && (
+                      <img
+                        src={book.imgUrl}
+                        alt={`Cover of ${book.bookTitle}`}
+                        className="w-20 h-auto rounded-lg shadow-md flex-shrink-0"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://placehold.co/80x120/E2E8F0/A0AEC0?text=No+Cover";
+                        }}
+                      />
                     )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                    <div className="flex-grow">
+                      <h3 className="text-xl font-bold text-gray-800">{book.bookTitle || book.title}</h3>
+                      <p className="text-sm text-gray-600 italic mt-1">{book.summary}</p>
+                      <div className="flex items-center space-x-4 mt-2">
+                        {book.rating && (
+                          <span className="text-yellow-600 font-semibold">
+                            ⭐ {book.rating}
+                          </span>
+                        )}
+                        {book.reviewCount && (
+                          <span className="text-gray-500 text-sm">
+                            {book.reviewCount} reviews
+                          </span>
+                        )}
+                      </div>
+                      {book.goodreadsUrl && (
+                        <a
+                          href={book.goodreadsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block mt-3 bg-green-600 text-white text-sm font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition duration-200"
+                        >
+                          View on Goodreads
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
   );
 }
 
