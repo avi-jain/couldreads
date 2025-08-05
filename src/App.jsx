@@ -69,8 +69,8 @@ export default function App() {
 
         The user's list of read books is: ${readBooks.join(', ')}.
 
-        Please provide your response as a JSON array of objects. Each object should have a 'bookTitle' property (a string) and a 'goodreadsUrl' property (the URL to the book on Goodreads). Do not include any other text or formatting outside the JSON array.
-        Example response: [{ "bookTitle": "The Name of the Wind", "goodreadsUrl": "https://www.goodreads.com/book/show/186074.The_Name_of_the_Wind" }]
+        Please provide your response as a JSON array of objects. Each object should have a 'bookTitle' property (a string), an 'author' property (a string), and a 'summary' property (a one-line summary string explaining why the user might like this book).  Do not include any other text or formatting outside the JSON array.
+        Example response: [{ "bookTitle": "The Name of the Wind", "author": "Patrick Rothfuss", "summary": "If you enjoy epic fantasy with a lyrical writing style, this is a must-read." }]
         If you cannot find any new books to recommend, return an empty array.
       `;
       console.log('Prompt for LLM:', prompt);
@@ -112,7 +112,7 @@ export default function App() {
       };
 
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
       const searchApiKey = import.meta.env.VITE_GOOGLE_SEARCH_API_KEY || process.env.VITE_GOOGLE_SEARCH_API_KEY;
       const searchCx = import.meta.env.VITE_GOOGLE_SEARCH_CX || process.env.VITE_GOOGLE_SEARCH_CX;
 
@@ -212,7 +212,7 @@ export default function App() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="goodreads-id" className="block text-gray-700 font-medium mb-1">
-              Goodreads User ID (mocked)
+              Goodreads User ID
             </label>
             <input
               type="text"
